@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.xmlpull.v1.XmlPullParserException
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -55,6 +56,10 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 } catch (e: IOException) {
                     Log.w(TAG, "sync failed", e)
                     fail("$time: server unreachable (${e.message})")
+                } catch (e: XmlPullParserException) {
+                    // e.g. an HTML login/error page served with 200
+                    Log.w(TAG, "bad feed", e)
+                    fail("$time: not a valid OPDS feed (${e.message})")
                 }
             }
         }
@@ -84,7 +89,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 prefs.setStatus("Downloading ${entry.title}…")
                 try {
                     val name = download(source, link.href, dir, entry.title, ext)
-                    prefs.synced.edit().putString(key, name).apply()
+                    prefs.synced.edit().putString(key, name).commit() // sync write: a kill after rename must not cause a re-download
                     Log.i(TAG, "saved $key as $name")
                     count++
                 } catch (e: IOException) {
