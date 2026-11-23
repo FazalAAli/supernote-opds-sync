@@ -39,12 +39,13 @@ class MainActivity : Activity() {
         val folder = findViewById<EditText>(R.id.folder)
         val hours = findViewById<EditText>(R.id.hours)
 
-        url.setText(prefs.feedUrl)
-        user.setText(prefs.username)
-        pass.setText(prefs.password)
-        headerName.setText(prefs.headerName)
-        headerValue.setText(prefs.headerValue)
-        folder.setText(prefs.folder)
+        val source = prefs.source
+        url.setText(source.url)
+        user.setText(source.username)
+        pass.setText(source.password)
+        headerName.setText(source.headerName)
+        headerValue.setText(source.headerValue)
+        folder.setText(source.folder)
         hours.setText(prefs.hours.toString())
 
         findViewById<Button>(R.id.save).setOnClickListener {
@@ -55,15 +56,15 @@ class MainActivity : Activity() {
                 return@setOnClickListener url.setError("Not a valid URL")
             }
             val h = hours.text.toString().toIntOrNull()?.coerceAtLeast(0) ?: 0
-            prefs.cfg.edit()
-                .putString("url", feed)
-                .putString("user", user.text.toString())
-                .putString("pass", pass.text.toString())
-                .putString("headerName", headerName.text.toString().trim())
-                .putString("headerValue", headerValue.text.toString().trim())
-                .putString("folder", folder.text.toString().trim().trim('/').ifEmpty { "Document/Books" })
-                .putInt("hours", h)
-                .apply()
+            prefs.source = Source(
+                url = feed,
+                username = user.text.toString(),
+                password = pass.text.toString(),
+                headerName = headerName.text.toString().trim(),
+                headerValue = headerValue.text.toString().trim(),
+                folder = folder.text.toString().trim().trim('/').ifEmpty { "Document/Books" },
+            )
+            prefs.hours = h
             SyncWorker.schedule(this, h)
             prefs.setStatus(if (h > 0) "Saved. Syncing every $h h." else "Saved. Periodic sync off.")
         }

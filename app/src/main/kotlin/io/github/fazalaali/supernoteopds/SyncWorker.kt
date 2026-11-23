@@ -39,12 +39,13 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         lock.withLock {
             val time = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date())
+            val source = prefs.source
             when {
-                prefs.feedUrl.isBlank() -> fail("Set a feed URL first")
+                source.url.isBlank() -> fail("Set a feed URL first")
                 !Environment.isExternalStorageManager() -> fail("Grant All files access first")
                 else -> try {
                     prefs.setStatus("Syncing…")
-                    val n = sync()
+                    val n = sync(source)
                     prefs.setStatus("$time: synced, $n new book(s)")
                     Result.success()
                 } catch (e: HttpError) {
@@ -62,22 +63,23 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         return Result.failure()
     }
 
-    private fun sync(): Int {
-        val dir = File(Environment.getExternalStorageDirectory(), prefs.folder)
+    private fun sync(source: Source): Int {
+        val dir = File(Environment.getExternalStorageDirectory(), source.folder)
         if (!dir.isDirectory && !dir.mkdirs()) throw IOException("can't create $dir")
         var count = 0
-        var page: URL? = URL(prefs.feedUrl)
+        var page: URL? = source.home
         val seen = HashSet<String>() // guards against a server whose rel="next" loops
         while (page != null && seen.add(page.toString())) {
             val url: URL = page
-            val feed = get(url) { parseFeed(Xml.newPullParser(), it, url) }
+            val feed = get(source, url) { parseFeed(Xml.newPullParser(), it, url) }
             for (entry in feed.entries) {
-                if (prefs.synced.contains(entry.id)) continue
+                val key = source.syncKey(entry.id)
+                if (prefs.synced.contains(key)) continue
                 val (link, ext) = entry.pick() ?: continue
                 prefs.setStatus("Downloading ${entry.title}…")
-                val name = download(link.href, dir, entry.title, ext)
-                prefs.synced.edit().putString(entry.id, name).apply()
-                Log.i(TAG, "saved ${entry.id} as $name")
+                val name = download(source, link.href, dir, entry.title, ext)
+                prefs.synced.edit().putString(key, name).apply()
+                Log.i(TAG, "saved $key as $name")
                 count++
             }
             page = feed.next
@@ -86,14 +88,14 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
     }
 
     /** Downloads to a .part file and renames on completion, so the reader never sees a half-written book. */
-    private fun download(url: URL, dir: File, title: String, ext: String): String {
+    private fun download(source: Source, url: URL, dir: File, title: String, ext: String): String {
         val base = fileName(title)
         val file = generateSequence(1) { it + 1 }
             .map { File(dir, if (it == 1) "$base.$ext" else "$base ($it).$ext") }
             .first { !it.exists() }
         val part = File(dir, "${file.name}.part")
         try {
-            get(url) { input -> part.outputStream().use { input.copyTo(it) } }
+            get(source, url) { input -> part.outputStream().use { input.copyTo(it) } }
             if (!part.renameTo(file)) throw IOException("rename failed: $file")
         } finally {
             part.delete()
@@ -103,10 +105,10 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
 
     /**
      * GETs [start], following redirects by hand so credentials are only ever sent over https to the
-     * feed's own host, never to a third-party link or redirect target.
+     * source's own host, never to a third-party link or redirect target.
      */
-    private fun <T> get(start: URL, read: (InputStream) -> T): T {
-        val home = URL(prefs.feedUrl)
+    private fun <T> get(source: Source, start: URL, read: (InputStream) -> T): T {
+        val home = source.home
         var url = start
         repeat(6) {
             val conn = url.openConnection() as HttpURLConnection
@@ -115,11 +117,11 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 conn.readTimeout = 60_000
                 conn.instanceFollowRedirects = false
                 if (url.protocol == "https" && url.host == home.host && url.port == home.port) {
-                    if (prefs.username.isNotEmpty() || prefs.password.isNotEmpty()) {
-                        val token = Base64.encodeToString("${prefs.username}:${prefs.password}".toByteArray(), Base64.NO_WRAP)
+                    if (source.username.isNotEmpty() || source.password.isNotEmpty()) {
+                        val token = Base64.encodeToString("${source.username}:${source.password}".toByteArray(), Base64.NO_WRAP)
                         conn.setRequestProperty("Authorization", "Basic $token")
                     }
-                    if (prefs.headerName.isNotBlank()) conn.setRequestProperty(prefs.headerName, prefs.headerValue)
+                    if (source.headerName.isNotBlank()) conn.setRequestProperty(source.headerName, source.headerValue)
                 }
                 val code = conn.responseCode
                 if (code in 300..399) {

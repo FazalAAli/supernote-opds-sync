@@ -54,6 +54,13 @@ class OpdsTest {
     }
 
     @Test
+    fun syncKeyScopedByServerNotFeed() {
+        val recent = Source("https://a.example.com/opds/recent")
+        assertEquals(recent.syncKey("urn:1"), Source("https://a.example.com/opds/all").syncKey("urn:1"))
+        assertEquals(false, recent.syncKey("urn:1") == Source("https://b.example.com/opds/recent").syncKey("urn:1"))
+    }
+
+    @Test
     fun sanitizesFileNames() {
         assertEquals("A_B_ Test_", fileName("A/B: Test?"))
         assertEquals("book", fileName(" ... "))
