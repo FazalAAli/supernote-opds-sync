@@ -47,8 +47,8 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 !applicationContext.canWriteStorage() -> fail("Grant storage access first")
                 else -> try {
                     prefs.setStatus("Syncing…")
-                    val n = sync(source)
-                    prefs.setStatus("$time: synced, $n new book(s)")
+                    val (n, failed) = sync(source)
+                    prefs.setStatus("$time: synced, $n new book(s)" + if (failed > 0) ", $failed failed (retried next sync)" else "")
                     Result.success()
                 } catch (e: HttpError) {
                     fail("$time: ${e.message}" + if (e.code == 401) " (check credentials)" else "")
@@ -65,13 +65,16 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         return Result.failure()
     }
 
-    private fun sync(source: Source): Int {
+    /** Returns (downloaded, failed). A failed entry isn't marked synced, so the next run retries it. */
+    private fun sync(source: Source): Pair<Int, Int> {
         val dir = File(Environment.getExternalStorageDirectory(), source.folder)
         if (!dir.isDirectory && !dir.mkdirs()) throw IOException("can't create $dir")
         var count = 0
+        var failed = 0
         var page: URL? = source.home
         val seen = HashSet<String>() // guards against a server whose rel="next" loops
-        while (page != null && seen.add(page.toString())) {
+        // ponytail: hard page cap against a next-chain of ever-new URLs; raise it if a real catalog hits it.
+        while (page != null && seen.size < 1000 && seen.add(page.toString())) {
             val url: URL = page
             val feed = get(source, url) { parseFeed(Xml.newPullParser(), it, url) }
             for (entry in feed.entries) {
@@ -79,14 +82,20 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 if (prefs.synced.contains(key)) continue
                 val (link, ext) = entry.pick() ?: continue
                 prefs.setStatus("Downloading ${entry.title}…")
-                val name = download(source, link.href, dir, entry.title, ext)
-                prefs.synced.edit().putString(key, name).apply()
-                Log.i(TAG, "saved $key as $name")
-                count++
+                try {
+                    val name = download(source, link.href, dir, entry.title, ext)
+                    prefs.synced.edit().putString(key, name).apply()
+                    Log.i(TAG, "saved $key as $name")
+                    count++
+                } catch (e: IOException) {
+                    // One dead acquisition link mustn't block every entry after it.
+                    Log.w(TAG, "skipping $key", e)
+                    failed++
+                }
             }
             page = feed.next
         }
-        return count
+        return count to failed
     }
 
     /** Downloads to a .part file and renames on completion, so the reader never sees a half-written book. */
