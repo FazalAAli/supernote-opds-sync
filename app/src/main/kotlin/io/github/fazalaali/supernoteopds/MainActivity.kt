@@ -1,7 +1,7 @@
 package io.github.fazalaali.supernoteopds
 
+import android.Manifest
 import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
@@ -69,21 +69,31 @@ class MainActivity : Activity() {
             prefs.setStatus(if (h > 0) "Saved. Syncing every $h h." else "Saved. Periodic sync off.")
         }
         findViewById<Button>(R.id.sync).setOnClickListener { SyncWorker.syncNow(this) }
-        findViewById<Button>(R.id.grant).setOnClickListener {
-            try {
-                startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName")))
-            } catch (e: ActivityNotFoundException) {
-                status.text = "No settings screen. Run:\nadb shell appops set $packageName MANAGE_EXTERNAL_STORAGE allow"
-            }
-        }
+        findViewById<Button>(R.id.grant).setOnClickListener { requestStorage() }
+        // Ask once on launch; the button covers a denial. Not in onResume: a denial would re-prompt forever.
+        if (!canWriteStorage()) requestStorage()
     }
 
     override fun onResume() {
         super.onResume()
         findViewById<View>(R.id.grant).visibility =
-            if (Environment.isExternalStorageManager()) View.GONE else View.VISIBLE
+            if (canWriteStorage()) View.GONE else View.VISIBLE
         status.text = prefs.status
         prefs.cfg.registerOnSharedPreferenceChangeListener(onPrefChange)
+    }
+
+    private fun requestStorage() {
+        if (!Environment.isExternalStorageLegacy()) {
+            status.text = "Scoped storage is enforced on this device; reinstall the app (don't update over an old version)."
+            return
+        }
+        // After "Don't ask again" Android silently denies; send the user to the app's settings instead.
+        if (prefs.cfg.getBoolean("askedStorage", false) && !shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+            return
+        }
+        prefs.cfg.edit().putBoolean("askedStorage", true).apply()
+        requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 1)
     }
 
     override fun onPause() {

@@ -40,7 +40,7 @@
 
         <Button android:id="@+id/save" style="@style/Action" android:text="Save" />
         <Button android:id="@+id/sync" style="@style/Action" android:text="Sync now" />
-        <Button android:id="@+id/grant" style="@style/Action" android:text="Grant All files access" />
+        <Button android:id="@+id/grant" style="@style/Action" android:text="Grant storage access" />
 
         <TextView
             android:id="@+id/status"

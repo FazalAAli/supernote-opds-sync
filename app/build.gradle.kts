@@ -9,9 +9,10 @@ android {
 
     defaultConfig {
         applicationId = "io.github.fazalaali.supernoteopds"
-        minSdk = 30
-        // Supernote runs Android 11. Higher targets only add restrictions we don't need.
-        targetSdk = 30
+        minSdk = 29
+        // Supernote runs Android 11. Targeting 29 keeps legacy storage (requestLegacyExternalStorage),
+        // so a normal runtime prompt grants write access to Document/ instead of "All files access".
+        targetSdk = 29
         versionCode = 1
         versionName = "0.1.0"
     }
@@ -30,7 +31,7 @@ android {
         jvmTarget = "17"
     }
     lint {
-        // targetSdk 30 is deliberate (see above).
+        // targetSdk 29 is deliberate (see above).
         disable += "ExpiredTargetSdkVersion"
     }
 }

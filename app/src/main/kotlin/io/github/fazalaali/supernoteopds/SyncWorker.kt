@@ -1,6 +1,8 @@
 package io.github.fazalaali.supernoteopds
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Environment
 import android.util.Base64
 import android.util.Log
@@ -42,7 +44,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             val source = prefs.source
             when {
                 source.url.isBlank() -> fail("Set a feed URL first")
-                !Environment.isExternalStorageManager() -> fail("Grant All files access first")
+                !applicationContext.canWriteStorage() -> fail("Grant storage access first")
                 else -> try {
                     prefs.setStatus("Syncing…")
                     val n = sync(source)
@@ -159,6 +161,11 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         }
     }
 }
+
+/** Write access to shared storage: the runtime permission, plus legacy (non-scoped) storage actually in effect. */
+fun Context.canWriteStorage() =
+    checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+        Environment.isExternalStorageLegacy()
 
 /** Title to a safe FAT/ext4 file name. */
 fun fileName(title: String): String =

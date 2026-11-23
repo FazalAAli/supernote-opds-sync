@@ -23,11 +23,8 @@ Tested on a Supernote Manta (Chauvet firmware, Android 11).
 ## Setup
 
 1. Install the APK: `adb install app-debug.apk`.
-2. Grant **All files access**. The app needs it to write to `Document/`. Use the button in the app, or run:
-   ```sh
-   adb shell appops set io.github.fazalaali.supernoteopds MANAGE_EXTERNAL_STORAGE allow
-   ```
-3. Open **OPDS Sync** and fill in the settings:
+2. Open **OPDS Sync** and allow storage access when asked. The app needs it to write to `Document/`.
+3. Fill in the settings:
    - **Feed URL:** must be `https://`.
    - **Username / password:** optional, sent with HTTP Basic auth.
    - **API key header name / API key:** optional, sent as an extra header on every request.
