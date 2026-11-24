@@ -2,7 +2,8 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    # Plain semver tags only, so the tag is always safe to use in a file name.
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
 
 permissions:
   contents: write
@@ -12,15 +13,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Only release commits that went through review onto main.
+      - run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
       - uses: cachix/install-nix-action@v31
       - name: Build signed APK
         env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_FILE: ${{ runner.temp }}/release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          echo '${{ secrets.KEYSTORE_BASE64 }}' | base64 -d > "$KEYSTORE_FILE"
+          base64 -d <<< "$KEYSTORE_BASE64" > "$KEYSTORE_FILE"
           nix develop -c gradle --no-daemon testReleaseUnitTest assembleRelease
           mv app/build/outputs/apk/release/app-release.apk "supernote-opds-sync-$GITHUB_REF_NAME.apk"
       - name: Create release
