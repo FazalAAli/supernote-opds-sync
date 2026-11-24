@@ -28,6 +28,8 @@
           default = pkgs.mkShell {
             packages = [ sdk pkgs.jdk17 pkgs.gradle pkgs.android-tools ];
             ANDROID_HOME = home;
+            # Override any preset value (GitHub runners set one); AGP fails if the two disagree.
+            ANDROID_SDK_ROOT = home;
             # The aapt2 that AGP downloads from Maven is dynamically linked and won't run on NixOS.
             GRADLE_OPTS = "-Dorg.gradle.project.android.aapt2FromMavenOverride=${home}/build-tools/${buildTools}/aapt2";
           };
