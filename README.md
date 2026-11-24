@@ -39,11 +39,11 @@ You need Nix with flakes enabled:
 
 ```sh
 nix develop
-./gradlew testDebugUnitTest assembleDebug
+gradle testDebugUnitTest assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Without Nix, you need JDK 17 and an Android SDK with platform 35. Then run `./gradlew assembleDebug`.
+Nix is required. The Gradle version comes from `flake.lock`. AGP 8.11.1 needs Gradle 8.13 or newer, so check compatibility when running `nix flake update`.
 
 ## Notes
 
