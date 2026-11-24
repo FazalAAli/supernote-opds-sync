@@ -9,6 +9,10 @@ acquisition feed.
 
 Tested on a Supernote Manta (Chauvet firmware, Android 11).
 
+## Demo
+
+https://github.com/user-attachments/assets/442a7edc-98be-41b7-817a-57aaa8f11dba
+
 ## Installation
 
 You need your Supernote, a computer (Windows, Mac or Linux), and a USB cable.
