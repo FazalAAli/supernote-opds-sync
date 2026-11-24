@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: Build signed APK
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo '${{ secrets.KEYSTORE_BASE64 }}' | base64 -d > "$KEYSTORE_FILE"
+          nix develop -c gradle --no-daemon testReleaseUnitTest assembleRelease
+          mv app/build/outputs/apk/release/app-release.apk "supernote-opds-sync-$GITHUB_REF_NAME.apk"
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes "supernote-opds-sync-$GITHUB_REF_NAME.apk"
