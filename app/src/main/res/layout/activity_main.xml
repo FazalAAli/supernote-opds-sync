@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plain views, no animation: e-ink friendly. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="32dp">
+
+        <TextView style="@style/Label" android:text="OPDS acquisition feed URL" />
+        <EditText android:id="@+id/url" style="@style/Field"
+            android:inputType="textUri" />
+
+        <TextView style="@style/Label" android:text="Username (optional)" />
+        <EditText android:id="@+id/user" style="@style/Field"
+            android:inputType="text" />
+
+        <TextView style="@style/Label" android:text="Password (optional)" />
+        <EditText android:id="@+id/pass" style="@style/Field"
+            android:inputType="textPassword" />
+
+        <TextView style="@style/Label" android:text="API key header name (optional, e.g. X-Api-Key)" />
+        <EditText android:id="@+id/headerName" style="@style/Field"
+            android:inputType="text" />
+
+        <TextView style="@style/Label" android:text="API key (optional)" />
+        <EditText android:id="@+id/headerValue" style="@style/Field"
+            android:inputType="textPassword" />
+
+        <TextView style="@style/Label" android:text="Save to folder (relative to storage root)" />
+        <EditText android:id="@+id/folder" style="@style/Field"
+            android:inputType="text" />
+
+        <TextView style="@style/Label" android:text="Sync every N hours (0 = off)" />
+        <EditText android:id="@+id/hours" style="@style/Field"
+            android:inputType="number" />
+
+        <Button android:id="@+id/save" style="@style/Action" android:text="Save" />
+        <Button android:id="@+id/sync" style="@style/Action" android:text="Sync now" />
+        <Button android:id="@+id/grant" style="@style/Action" android:text="Grant storage access" />
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:textColor="#000000"
+            android:textSize="18sp" />
+    </LinearLayout>
+</ScrollView>
